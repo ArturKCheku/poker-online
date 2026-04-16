@@ -1297,14 +1297,14 @@ function updateWaitingUI() {
     subMessage = `Se necesitan al menos 2 personas para jugar.<br>Actual: <strong>${players.length}/6</strong>`;
     buttonsHTML = `
         <div class="d-flex gap-3" style="margin-top: 20px;">
-          <button id="modal-start-btn" class="blind-btn start-game-btn small-btn" style="width: 100%; padding: 15px; font-size: 1.2rem;">🚀 Iniciar Partida</button>
-          <button id="modal-leave-btn" class="blind-btn leave-room-btn small-btn" style="width: 100%; opacity: 0.8;">Salir de la Sala</button>
+          <button id="modal-start-btn" class="blind-btn start-game-btn" style="width: 100%; padding: 15px; font-size: 1.2rem;">🚀 Iniciar Partida</button>
+          <button id="modal-leave-btn" class="blind-btn leave-room-btn" style="width: 100%; opacity: 0.8;">Salir de la Sala</button>
         </div>
       `;
   } else {
     title = "⏳ Sala Preparada";
     subMessage = "<span style='color: #f1c40f; font-weight: bold;'>Esperando a que el anfitrión inicie la partida...</span>";
-    buttonsHTML = `<button id="modal-leave-btn" class="blind-btn leave-room-btn small-btn" style="margin-top:20px; width:100%;">Salir de la Sala</button>`;
+    buttonsHTML = `<button id="modal-leave-btn" class="blind-btn leave-room-btn" style="margin-top:20px; width:100%;">Salir de la Sala</button>`;
   }
 
 
