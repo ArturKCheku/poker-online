@@ -583,8 +583,6 @@ function handleRoomCreated(data) {
   initialModal.style.display = 'none';
   mainGame.style.display = 'flex';
   saveGameState();
-  roomCodeDisplay.style.display = 'block';
-  roomCodeElement.textContent = currentRoomCode;
   roomInfo.style.display = 'block';
   playerCount.textContent = `Jugadores: ${players.length}`;
   roomCodeInfo.textContent = `Código: ${currentRoomCode}`;
@@ -854,13 +852,19 @@ function disablePlayerControls() {
  */
 function updatePlayersNeeded() {
   const needed = Math.max(0, 2 - players.length);
-  playersNeeded.textContent = `${players.length}/6 jugadores`;
+  if (playersNeeded) {
+    playersNeeded.textContent = `${players.length}/6 jugadores`;
+  }
   if (players.length >= 2 && isHost) {
-    startGameBtn.disabled = false;
-    startGameBtn.classList.remove('disabled');
+    if (startGameBtn) {
+      startGameBtn.disabled = false;
+      startGameBtn.classList.remove('disabled');
+    }
   } else {
-    startGameBtn.disabled = true;
-    startGameBtn.classList.add('disabled');
+    if (startGameBtn) {
+      startGameBtn.disabled = true;
+      startGameBtn.classList.add('disabled');
+    }
   }
 }
 
@@ -888,10 +892,10 @@ function startGame() {
     return;
   }
   gameStarted = true;
-  waitingScreen.style.display = 'none';
-  startGameBtn.style.display = 'none';
-  roundEndBtn.style.display = 'block';
-  roomCodeDisplay.style.display = 'none';
+  if (waitingScreen) waitingScreen.style.display = 'none';
+  if (startGameBtn) startGameBtn.style.display = 'none';
+  if (roundEndBtn) roundEndBtn.style.display = 'block';
+  if (roomCodeDisplay) roomCodeDisplay.style.display = 'none';
   playerMessageCount = 0;
   updateMessageCounters();
   allInBtn.style.display = 'flex';
@@ -1124,9 +1128,7 @@ function completePlayerConversion(myPlayer) {
   playerName = myPlayer.name;
   playerChips = myPlayer.chips;
   saveGameState();
-  if (waitingScreen) {
-    waitingScreen.style.display = 'none';
-  }
+  updateWaitingUI();
   updatePlayerList();
   updatePlayerInfo();
   updateBettingControls();
@@ -1271,6 +1273,86 @@ function updatePlayerInfo() {
   }
 }
 
+function updateWaitingUI() {
+  if (gameStarted) {
+    if (waitingScreen) waitingScreen.style.display = 'none';
+    return;
+  }
+
+  // Forzamos que se vea el contenedor
+  if (waitingScreen) {
+    waitingScreen.style.display = 'flex';
+  }
+
+  // Definimos las condiciones
+  const isHost = players.length > 0 && (players[0].socketId === socket.id || players[0].id === socket.id);
+  const canStart = players.length >= 2;
+
+  let title = "";
+  let subMessage = "";
+  let buttonsHTML = "";
+
+  if (!canStart || isHost) {
+    title = "🃏 Esperando Jugadores...";
+    subMessage = `Se necesitan al menos 2 personas para jugar.<br>Actual: <strong>${players.length}/6</strong>`;
+    buttonsHTML = `
+        <div class="d-flex gap-3" style="margin-top: 20px;">
+          <button id="modal-start-btn" class="blind-btn start-game-btn small-btn" style="width: 100%; padding: 15px; font-size: 1.2rem;">🚀 Iniciar Partida</button>
+          <button id="modal-leave-btn" class="blind-btn leave-room-btn small-btn" style="width: 100%; opacity: 0.8;">Salir de la Sala</button>
+        </div>
+      `;
+  } else {
+    title = "⏳ Sala Preparada";
+    subMessage = "<span style='color: #f1c40f; font-weight: bold;'>Esperando a que el anfitrión inicie la partida...</span>";
+    buttonsHTML = `<button id="modal-leave-btn" class="blind-btn leave-room-btn small-btn" style="margin-top:20px; width:100%;">Salir de la Sala</button>`;
+  }
+
+
+  const contentArea = document.getElementById('waiting-content-area');
+  if (contentArea) {
+    contentArea.style.cssText = `max-width: 450px;`;
+    contentArea.innerHTML = `
+        <h2 style="margin-bottom: 15px;">${title}</h2>
+        <p style="margin-bottom: 20px; font-size: 1.1em;">${subMessage}</p>
+        
+        <div class="room-code-display" style="margin-bottom: 20px;">
+            <h3 class="room-code-title">🔐 Código de Sala</h3>
+            <div class="room-code">${currentRoomCode || 'XXXXXX'}</div>
+        </div>
+
+        <div style="font-size: 0.9em; opacity: 0.6;">
+            ${players.length} jugadores conectados actualmente.
+        </div>
+        
+        ${!isHost && canStart ? '<div class="loading-spinner" style="margin: 20px auto;"></div>' : ''}
+        
+        ${buttonsHTML}
+    `;
+
+    // --- RE-ASIGNAR CLICKS ---
+    const mStartBtn = document.getElementById('modal-start-btn');
+    const mLeaveBtn = document.getElementById('modal-leave-btn');
+
+    if (mStartBtn) {
+      mStartBtn.onclick = () => {
+        console.log("🎮 Iniciando desde el modal...");
+        startGame();
+      };
+    }
+
+    if (mLeaveBtn) {
+      mLeaveBtn.onclick = () => {
+        console.log("🚪 Saliendo desde el modal...");
+        leaveRoom(); // Asegúrate de tener esta función definida
+      };
+    }
+  }
+}
+
+function showLoading(msg) {
+  waitingScreen.style.display = 'flex';
+  document.getElementById('waiting-content-area').innerHTML = `<h2>${msg}</h2><div class="loading-spinner"></div>`;
+}
 /**
  * Función principal interna: checkForSinglePlayerWin. Reacciona y ejecuta la lógica estandarizada.
  */
@@ -1549,63 +1631,65 @@ function showMobileToast(message) {
  */
 
 function showReconnectOption() {
-  if (reconnectOptionShown) {
+  if (reconnectOptionShown || document.getElementById('reconnect-modal')) {
     console.log('🔄 Opción de reconexión ya mostrada');
     return;
   }
+
   const savedState = loadGameState();
   if (!savedState || !savedState.roomCode) {
     console.log('💾 No hay estado guardado para reconectar');
     return;
   }
-  console.log('🔄 Mostrando opción de reconexión MANUAL (recarga de página)...');
-  const existingReconnectSection = document.querySelector('.reconnect-section');
-  if (existingReconnectSection) {
-    console.log('🔄 Sección de reconexión ya existe');
-    return;
-  }
-  const reconnectSection = document.createElement('div');
-  reconnectSection.className = 'reconnect-section';
-  reconnectSection.innerHTML = `
-    <div style="background: rgba(241, 196, 15, 0.2); padding: 15px; border-radius: 10px; margin: 15px 0; border: 2px solid #f1c40f;">
-      <h3 style="color: #f1c40f; margin-bottom: 10px;">🔄 Partida en Curso Detectada</h3>
-      <p style="margin-bottom: 10px;">
-        Tienes una partida en curso como <strong>${savedState.playerName}</strong> 
-        en la sala <strong>${savedState.roomCode}</strong>
-        ${savedState.isSpectator ? ' (como espectador)' : ''}
-      </p>
-      <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-        <button id="reconnect-btn" style="padding: 10px 20px; background: #2ecc71; color: white; border: none; border-radius: 5px; cursor: pointer; flex: 1;">
-          ✅ Reconectar
-        </button>
-        <button id="new-session-btn" style="padding: 10px 20px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer; flex: 1;">
-          🎮 Nueva Partida
-        </button>
+
+  console.log('🔄 Mostrando modal de reconexión independiente...');
+  const reconnectModal = document.createElement('div');
+  reconnectModal.id = 'reconnect-modal';
+  reconnectModal.className = 'poker-modal';
+  reconnectModal.style.zIndex = "20000";
+  reconnectModal.innerHTML = `
+      <div style="background: rgba(241, 196, 15, 0.2); padding: 25px; border-radius: 10px; border: 2px solid #f1c40f;">
+        <h3 style="color: #f1c40f; margin-bottom: 15px; text-align: center;">🔄 Partida en Curso Detectada</h3>
+        <p style="margin-bottom: 20px; text-align: center;">
+          Tienes una partida en curso como <strong>${savedState.playerName}</strong> 
+          en la sala <strong>${savedState.roomCode}</strong>
+          ${savedState.isSpectator ? ' (como espectador)' : ''}
+        </p>
+        <div style="display: flex; gap: 15px; margin-bottom: 15px;">
+          <button id="reconnect-btn" style="padding: 12px 20px; background: #2ecc71; color: white; border: none; border-radius: 5px; cursor: pointer; flex: 1; font-weight: bold;">
+            ✅ Reconectar
+          </button>
+          <button id="new-session-btn" style="padding: 12px 20px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer; flex: 1; font-weight: bold;">
+            🎮 Nueva Partida
+          </button>
+        </div>
+        <p style="margin-top: 15px; font-size: 0.9em; color: #f39c12; text-align: center;">
+          ⚡ Selecciona una opción para continuar
+        </p>
       </div>
-      <p style="margin-top: 10px; font-size: 0.9em; color: #f39c12;">
-        ⚡ Selecciona una opción para continuar
-      </p>
-    </div>
   `;
-  const modalContent = document.querySelector('.modal-content');
-  if (modalContent) {
-    modalContent.insertBefore(reconnectSection, modalContent.firstChild);
-    reconnectOptionShown = true;
-    document.getElementById('reconnect-btn').addEventListener('click', function () {
-      console.log('🎯 Usuario eligió RECONECTAR manualmente');
-      triggerAutoReconnect(savedState);
+
+  document.body.appendChild(reconnectModal);
+  reconnectOptionShown = true;
+
+  document.getElementById('reconnect-btn').addEventListener('click', function () {
+    console.log('🎯 Usuario eligió RECONECTAR');
+    reconnectModal.remove();
+    triggerAutoReconnect(savedState);
+  });
+
+  document.getElementById('new-session-btn').addEventListener('click', function () {
+    console.log('🎯 Usuario eligió NUEVA PARTIDA');
+    reconnectOptionShown = false;
+    clearGameState();
+    reconnectModal.remove();
+
+    const inputs = ['player-name', 'join-player-name', 'room-code-input'];
+    inputs.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
     });
-    document.getElementById('new-session-btn').addEventListener('click', function () {
-      console.log('🎯 Usuario eligió NUEVA PARTIDA');
-      reconnectOptionShown = false;
-      clearGameState();
-      reconnectSection.remove();
-      if (playerNameInput) playerNameInput.value = '';
-      if (joinPlayerNameInput) joinPlayerNameInput.value = '';
-      if (roomCodeInput) roomCodeInput.value = '';
-      console.log('🎮 Usuario eligió nueva partida - Estado limpiado');
-    });
-  }
+  });
 }
 
 /**
@@ -2170,7 +2254,7 @@ function showWinnerSelection(potAmount, playersList = null) {
   const sidePotInfo = document.createElement('div');
   sidePotInfo.id = 'side-pot-info';
   sidePotInfo.style.marginTop = '15px';
-  winnerModal.querySelector('.modal-content').insertBefore(sidePotInfo, winnerOptions);
+  winnerModal.querySelector('.poker-modal-content').insertBefore(sidePotInfo, winnerOptions);
   console.log('🔍 DEBUG showWinnerSelection - INICIO');
   const playersToUse = playersList || players;
   const activePlayers = playersToUse.filter(player => {

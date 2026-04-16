@@ -158,6 +158,7 @@ const registerActions = (io, socket) => {
           gameFinished: room.gameFinished,
           initialMoney: room.initialMoney || 300
         });
+        io.to(roomCodeUpper).emit('update-player-list', room.players);
         io.to(roomCodeUpper).emit('player-joined', {
           player: room.players.find(p => p.socketId === socket.id),
           players: room.players,
@@ -1045,6 +1046,7 @@ const registerActions = (io, socket) => {
         message: `✅ ${player.name} se ha reconectado`,
         type: 'system'
       });
+      io.to(roomCodeUpper).emit('update-player-list', room.players);
       io.to(roomCodeUpper).emit('game-state-sync', {
         players: room.players,
         potTotal: room.potTotal,
@@ -1146,6 +1148,7 @@ const registerActions = (io, socket) => {
           room.currentBet = 0;
         }
       }
+      io.to(roomCodeUpper).emit('update-player-list', room.players);
       io.to(roomCodeUpper).emit('player-kicked', {
         playerName: kickedPlayer.name,
         players: room.players,

@@ -122,13 +122,30 @@ socket.on('error', message => {
     console.error('   - Tipo:', typeof playerName);
     console.error('   - Trimmed length:', playerName ? playerName.trim().length : 'null');
   }
+  if (message.includes('No puedes unirte durante una ronda activa') && isSpectator) {
+    console.log('🔄 Reintentando conversión en 2 segundos...');
+    setTimeout(() => {
+      convertToPlayerAuto();
+    }, 2000);
+    return;
+  }
   alert('Error: ' + message);
+});
+socket.on('update-player-list', (updatedPlayers) => {
+  console.log('👥 Lista de jugadores actualizada:', updatedPlayers);
+  players = updatedPlayers;
+  if (typeof updatePlayerList === 'function') {
+    updatePlayerList();
+  }
+  if (!gameStarted) {
+    updateWaitingUI();
+  }
 });
 socket.on('game-started', data => {
   console.log('🎮 Juego iniciado/REINICIADO recibido del servidor');
   players = data.players;
   gameStarted = true;
-  waitingScreen.style.display = 'none';
+  if (waitingScreen) waitingScreen.style.display = 'none';
   currentRound = data.currentRound || 'preflop';
   console.log(`🎯 Ronda inicial: ${currentRound}`);
   if (isHost) {
@@ -723,6 +740,7 @@ socket.on('room-created', data => {
   reconnectOptionShown = true;
   handleRoomCreated(data);
   saveGameState();
+  updateWaitingUI();
 });
 socket.on('joined-room', data => {
   console.log('Unido a sala:', data);
@@ -732,19 +750,7 @@ socket.on('joined-room', data => {
   reconnectOptionShown = true;
   handleJoinedRoom(data);
   saveGameState();
-});
-socket.on('error', message => {
-  console.error('Error del servidor:', message);
-  if (message.includes('No puedes unirte durante una ronda activa') && isSpectator) {
-    console.log('🔄 Reintentando conversión en 2 segundos...');
-    setTimeout(() => {
-      convertToPlayerAuto();
-    }, 2000);
-    return;
-  }
-  if (!message.includes('ronda activa')) {
-    alert('Error: ' + message);
-  }
+  updateWaitingUI();
 });
 socket.on('new-message', data => {
   if (data.playerName !== playerName) {
