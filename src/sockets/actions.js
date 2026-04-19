@@ -949,6 +949,37 @@ const registerActions = (io, socket) => {
       }
     }
   });
+  socket.on('leave-room', data => {
+    try {
+      const { roomCode } = data;
+      if (!roomCode) return;
+      const roomCodeUpper = roomCode.toUpperCase();
+      const room = rooms.get(roomCodeUpper);
+
+      if (!room) return;
+      const playerIndex = room.players.findIndex(p => p.socketId === socket.id);
+      if (playerIndex !== -1) {
+        const playerName = room.players[playerIndex].name;
+        const wasHost = room.players[playerIndex].isHost;
+        room.players.splice(playerIndex, 1);
+        console.log(`🚪 ${playerName} salió voluntariamente de la sala ${roomCodeUpper}`);
+        if (room.players.length === 0) {
+          rooms.delete(roomCodeUpper);
+          console.log(`🗑️ Sala ${roomCodeUpper} eliminada por quedarse vacía.`);
+        } else {
+          if (wasHost) {
+            room.host = room.players[0].socketId;
+            room.players[0].isHost = true;
+            console.log(`👑 Nuevo host asignado: ${room.players[0].name}`);
+          }
+          io.to(roomCodeUpper).emit('update-player-list', room.players);
+        }
+        socket.leave(roomCodeUpper);
+      }
+    } catch (error) {
+      console.error('❌ Error en leave-room:', error);
+    }
+  });
   socket.on('reconnect-player', data => {
     try {
       const {
@@ -1218,29 +1249,17 @@ const registerActions = (io, socket) => {
     });
   });
   socket.on('shuffle-players', (data) => {
-    console.log("🎲 Recibida petición de mezcla para sala:", data.roomCode);
-
-    if (!data || !data.roomCode) return;
-
-    const roomCode = data.roomCode.toUpperCase();
+    const roomCode = data.roomCode?.toUpperCase();
     const room = rooms.get(roomCode);
 
     if (room && socket.id === room.host && !room.gameStarted) {
-
       let playersArray = room.players;
-      for (let i = playersArray.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
+      for (let i = playersArray.length - 1; i > 1; i--) {
+        const j = Math.floor(Math.random() * i) + 1;
         [playersArray[i], playersArray[j]] = [playersArray[j], playersArray[i]];
       }
-
-      console.log(`✅ Sala ${roomCode}: Asientos mezclados con éxito.`);
-
-      io.to(roomCode).emit('players-shuffled', {
-        newOrder: playersArray
-      });
-
-    } else {
-      console.log("⚠️ Mezcla rechazada: No eres el host o la partida ya empezó.");
+      console.log(`✅ Sala ${roomCode}: Asientos mezclados (Host protegido).`);
+      io.to(roomCode).emit('players-shuffled', playersArray);
     }
   });
   socket.on('new-hand-started', data => {

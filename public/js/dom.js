@@ -52,4 +52,3 @@ const roundPhase = document.getElementById('round-phase');
 const roundDescription = document.getElementById('round-description');
 const closeRoundModal = document.getElementById('close-round-modal');
 const style = document.createElement('style');
-const shuffleBtn = document.getElementById('shuffle-players-btn');

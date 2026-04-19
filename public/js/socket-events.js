@@ -155,7 +155,9 @@ socket.on('game-started', data => {
     if (startGameBtn) startGameBtn.style.display = 'none';
     if (roundEndBtn) roundEndBtn.style.display = 'none';
   }
-  roomCodeDisplay.style.display = 'none';
+  if (roomCodeDisplay) {
+    roomCodeDisplay.style.display = 'none';
+  }
   updateHostControls();
   playerMessageCount = 0;
   tempBet = 0;
@@ -373,23 +375,6 @@ socket.on('round-finished-new-players-welcome', data => {
 				<p>Estás siendo agregado como jugador para la siguiente ronda</p>
 				<div class="players-needed">Por favor espera...</div>
 			`;
-  }
-});
-socket.on('round-finished-new-players-welcome', data => {
-  console.log('🔄 Ronda terminada - Nuevos jugadores pueden unirse');
-  addMessage('Sistema', `🏆 ${data.winner} ganó la ronda! Nuevos jugadores pueden unirse para la siguiente ronda.`, 'win');
-  if (isHost) {
-    startGameBtn.style.display = 'block';
-    startGameBtn.textContent = 'Iniciar Siguiente Ronda';
-    startGameBtn.onclick = function () {
-      socket.emit('start-next-round', {
-        roomCode: currentRoomCode
-      });
-    };
-    roundEndBtn.style.display = 'none';
-  }
-  if (isSpectator) {
-    addMessage('Sistema', '🔄 La ronda terminó. Puedes unirte como jugador para la siguiente ronda.', 'system');
   }
 });
 socket.on('player-reconnected', data => {
@@ -770,9 +755,17 @@ socket.on('winner-announced', data => {
 });
 
 socket.on('players-shuffled', (data) => {
-  console.log("🔄 Recibido nuevo orden de jugadores:", data.newOrder);
-  players = data.newOrder;
+  const newOrder = data.newOrder || data;
 
+  if (!newOrder || !Array.isArray(newOrder)) {
+    console.error("❌ Error: Los datos recibidos de la mezcla no son válidos", data);
+    return;
+  }
+  console.log("🎲 ¡Asientos barajados con éxito!", newOrder);
+
+  players = newOrder;
+  updateWaitingUI();
   updatePlayerList();
-  addMessage('Sistema', '🃏 Los asientos han sido mezclados.', 'system');
+
+  addMessage('Sistema', '🃏 El anfitrión ha mezclado los asientos.', 'system');
 });

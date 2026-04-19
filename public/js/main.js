@@ -129,9 +129,3 @@ if (document.getElementById('close-round-modal')) {
     updateBettingControls();
   });
 }
-if (shuffleBtn) {
-  shuffleBtn.addEventListener('click', () => {
-    console.log("🎲 Solicitando mezcla de jugadores...");
-    socket.emit('shuffle-players', { roomCode: currentRoomCode });
-  });
-}

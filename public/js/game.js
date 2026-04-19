@@ -147,7 +147,7 @@ function createRoom() {
  */
 function executeCreateRoom() {
   clearGameState();
-  players = [];
+  window.players = [];
   currentPlayerTurn = 0;
   currentBet = 0;
   potTotal = 0;
@@ -387,7 +387,7 @@ function clearGameState() {
   isSpectator = false;
   isHost = false;
   gameStarted = false;
-  players = [];
+  window.players = [];
   currentPlayerTurn = 0;
   currentBet = 0;
   potTotal = 0;
@@ -583,7 +583,6 @@ function handleRoomCreated(data) {
   initialModal.style.display = 'none';
   mainGame.style.display = 'flex';
   saveGameState();
-  roomInfo.style.display = 'block';
   playerCount.textContent = `Jugadores: ${players.length}`;
   roomCodeInfo.textContent = `Código: ${currentRoomCode}`;
   updatePlayerList();
@@ -1278,72 +1277,76 @@ function updateWaitingUI() {
     if (waitingScreen) waitingScreen.style.display = 'none';
     return;
   }
+  if (!players) players = [];
+  if (waitingScreen) waitingScreen.style.display = 'flex';
 
-  // Forzamos que se vea el contenedor
-  if (waitingScreen) {
-    waitingScreen.style.display = 'flex';
-  }
-
-  // Definimos las condiciones
-  const isHost = players.length > 0 && (players[0].socketId === socket.id || players[0].id === socket.id);
+  const isHost = players.length > 0 && (players[0].socketId === socket.id || players.find(p => p.isHost && p.socketId === socket.id));
   const canStart = players.length >= 2;
+
+  const playersListHTML = players.map(p => `
+    <div style="display: flex; justify-content: space-between; padding: 5px 10px; background: rgba(255,255,255,0.05); border-radius: 5px; margin-bottom: 5px; border-left: 3px solid ${p.isHost ? '#ffd700' : '#555'}">
+      <span>${p.isHost ? '👑 ' : ''}${p.name}</span>
+      <span style="opacity: 0.6; font-size: 0.8em;">$${p.chips}</span>
+    </div>
+  `).join('');
 
   let title = "";
   let subMessage = "";
-  let buttonsHTML = "";
+  let extraStyle = "";
 
-  if (!canStart || isHost) {
+  if (!canStart) {
     title = "🃏 Esperando Jugadores...";
     subMessage = `Se necesitan al menos 2 personas para jugar.<br>Actual: <strong>${players.length}/6</strong>`;
-    buttonsHTML = `
-        <div class="d-flex gap-3" style="margin-top: 20px;">
-          <button id="modal-start-btn" class="blind-btn start-game-btn" style="width: 100%; padding: 15px; font-size: 1.2rem;">🚀 Iniciar Partida</button>
-          <button id="modal-leave-btn" class="blind-btn leave-room-btn" style="width: 100%; opacity: 0.8;">Salir de la Sala</button>
-        </div>
-      `;
   } else {
-    title = "⏳ Sala Preparada";
-    subMessage = "<span style='color: #f1c40f; font-weight: bold;'>Esperando a que el anfitrión inicie la partida...</span>";
-    buttonsHTML = `<button id="modal-leave-btn" class="blind-btn leave-room-btn" style="margin-top:20px; width:100%;">Salir de la Sala</button>`;
+    if (isHost) {
+      title = "✅ ¡Mesa Lista!";
+      subMessage = "Todo preparado. ¿Comenzamos la partida?";
+      extraStyle = "border: 2px solid #2ecc71; background: rgba(46, 204, 113, 0.1);";
+    } else {
+      title = "⏳ Sala Preparada, esperando al anfitrión";
+      subMessage = "<span style='color: #f1c40f; font-weight: bold;'>Esperando a que el anfitrión inicie la partida...</span>";
+      extraStyle = "border: 2px solid #2ecc71; background: rgba(46, 204, 113, 0.1);";
+    }
   }
-
 
   const contentArea = document.getElementById('waiting-content-area');
   if (contentArea) {
-    contentArea.style.cssText = `max-width: 450px;`;
+    contentArea.style.cssText = `max-width: 450px; ${extraStyle}`;
     contentArea.innerHTML = `
         <h2 style="margin-bottom: 15px;">${title}</h2>
-        <p style="margin-bottom: 20px; font-size: 1.1em;">${subMessage}</p>
         
+        <div style="margin-bottom: 20px; text-align: left;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 0.85rem; text-transform: uppercase; opacity: 0.7; letter-spacing: 1px;">Jugadores (${players.length}/6)</span>
+            ${isHost && canStart ? '<span id="modal-shuffle-action" style="cursor:pointer; font-size: 1.2rem;" title="Mezclar Asientos">🔀</span>' : ''}
+          </div>
+          <div style="max-height: 120px; overflow-y: auto;">
+            ${playersListHTML}
+          </div>
+        </div>
+
         <div class="room-code-display" style="margin-bottom: 20px;">
             <h3 class="room-code-title">🔐 Código de Sala</h3>
             <div class="room-code">${currentRoomCode || 'XXXXXX'}</div>
         </div>
 
-        <div style="font-size: 0.9em; opacity: 0.6;">
-            ${players.length} jugadores conectados actualmente.
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+          ${isHost && canStart ? '<button id="modal-start-btn" class="blind-btn start-game-btn" style="width: 100%; padding: 12px;">🚀 Iniciar Partida</button>' : ''}
+          <button id="modal-leave-btn" class="blind-btn leave-room-btn" style="width: 100%; opacity: 0.8;">Salir de la Sala</button>
         </div>
-        
-        ${!isHost && canStart ? '<div class="loading-spinner" style="margin: 20px auto;"></div>' : ''}
-        
-        ${buttonsHTML}
     `;
 
-    // --- RE-ASIGNAR CLICKS ---
     const mStartBtn = document.getElementById('modal-start-btn');
     const mLeaveBtn = document.getElementById('modal-leave-btn');
+    const mShuffleIcon = document.getElementById('modal-shuffle-action');
 
-    if (mStartBtn) {
-      mStartBtn.onclick = () => {
-        console.log("🎮 Iniciando desde el modal...");
-        startGame();
-      };
-    }
+    if (mStartBtn) mStartBtn.onclick = () => startGame();
+    if (mLeaveBtn) mLeaveBtn.onclick = () => leaveRoom();
 
-    if (mLeaveBtn) {
-      mLeaveBtn.onclick = () => {
-        console.log("🚪 Saliendo desde el modal...");
-        leaveRoom(); // Asegúrate de tener esta función definida
+    if (mShuffleIcon) {
+      mShuffleIcon.onclick = () => {
+        console.log("🎲 Mezclando desde el modal...");
+        socket.emit('shuffle-players', { roomCode: currentRoomCode });
       };
     }
   }
@@ -1738,6 +1741,9 @@ function triggerAutoReconnect(savedState) {
 
 function leaveRoom() {
   console.log('🚪 Saliendo de la sala...');
+  if (currentRoomCode) {
+    socket.emit('leave-room', { roomCode: currentRoomCode });
+  }
   fullReset();
   addMessage('Sistema', 'Has salido de la sala', 'system');
 }
@@ -2458,9 +2464,6 @@ function updateHostControls() {
  */
 function updatePlayerList() {
   if (!playerList) return;
-  if (shuffleBtn) {
-    shuffleBtn.style.display = (isHost && !gameStarted) ? 'block' : 'none';
-  }
   playerList.classList.remove('count-4');
   const numPlayers = players.length;
   if (numPlayers == 4) {
