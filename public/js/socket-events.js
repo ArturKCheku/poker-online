@@ -2,20 +2,16 @@ socket.on('connect', () => {
   console.log('✅ Conectado al servidor');
   connectionStatus.textContent = 'Conectado';
   connectionStatus.className = 'connection-status connected';
+
   if (isMobileDevice && !isPageReloaded && shouldAttemptAutoReconnect()) {
     if (mainGame && mainGame.style.display === 'flex' && initialModal.style.display !== 'flex') {
-      console.log('📱 Reconexión automática (dispositivo móvil/tablet en pantalla de juego)...');
       attemptAutoReconnect();
-    } else {
-      console.log('🔒 No reconectar automáticamente: Estamos en pantalla inicial');
     }
   }
   if (isPageReloaded && !currentRoomCode && !reconnectOptionShown) {
     if (initializeGameState()) {
-      console.log('🔄 Mostrando opción de reconexión manual...');
+      console.log('🔄 Sincronizando estado guardado tras recarga...');
       showReconnectOption();
-    } else {
-      console.log('💾 No hay estado guardado para reconectar');
     }
   }
   isPageReloaded = false;

@@ -126,6 +126,12 @@ function filterActivePlayers(playersList) {
 function createRoom() {
   console.log('🎯 CREATE ROOM CLICKED - Estado del socket:', socket.connected);
   console.log('🎯 CREATE ROOM CLICKED - Socket ID:', socket.id);
+  isPageReloaded = false;
+  reconnectOptionShown = true;
+
+  if (waitingScreen) {
+    waitingScreen.innerHTML = '<div id="waiting-content-area" class="poker-modal-content"></div>';
+  }
   if (!socket.connected) {
     console.log('🔄 Socket no conectado, intentando reconectar...');
     socket.connect();
@@ -416,7 +422,17 @@ function clearGameState() {
  */
 function fullReset() {
   console.log('🔄 Reinicio completo de la aplicación');
+  isPageReloaded = false;
+  reconnectOptionShown = false;
+  if (reconnectTimeout) {
+    clearTimeout(reconnectTimeout);
+    reconnectTimeout = null;
+  }
   clearGameState();
+  if (waitingScreen) {
+    waitingScreen.style.display = 'none';
+    waitingScreen.innerHTML = '<div id="waiting-content-area" class="poker-modal-content"></div>';
+  }
   initialModal.style.display = 'flex';
   mainGame.style.display = 'none';
   if (playerNameInput) playerNameInput.value = '';
@@ -1056,6 +1072,7 @@ function resetPlayerState() {
  * Petición cliente para conectarse a una sala existente usando un Room Code.
  */
 function joinRoom() {
+  isPageReloaded = false;
   reconnectOptionShown = true;
   const reconnectSection = document.querySelector('.reconnect-section');
   if (reconnectSection) {
@@ -1314,6 +1331,11 @@ function updateWaitingUI() {
     contentArea.style.cssText = `max-width: 450px; ${extraStyle}`;
     contentArea.innerHTML = `
         <h2 style="margin-bottom: 15px;">${title}</h2>
+
+        <div class="room-code-display" style="margin-bottom: 20px;">
+            <h3 class="room-code-title">🔐 Código de Sala</h3>
+            <div class="room-code">${currentRoomCode || 'XXXXXX'}</div>
+        </div>
         
         <div style="margin-bottom: 20px; text-align: left;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -1323,11 +1345,6 @@ function updateWaitingUI() {
           <div style="max-height: 120px; overflow-y: auto;">
             ${playersListHTML}
           </div>
-        </div>
-
-        <div class="room-code-display" style="margin-bottom: 20px;">
-            <h3 class="room-code-title">🔐 Código de Sala</h3>
-            <div class="room-code">${currentRoomCode || 'XXXXXX'}</div>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
@@ -2353,7 +2370,7 @@ function updateSplitPotInfo(potAmount) {
         const player = players.find(p => p.id === checkbox.dataset.playerId);
         if (player) {
           const playerBet = player.bet || 0;
-          splitInfo.innerHTML += `<br><small>Apuesta: $${playerBet} | Máx a ganar: $${playerBet * numWinners}</small>`;
+          splitInfo.innerHTML += ` | Apuesta: $${playerBet}`;
         }
       }
     });
